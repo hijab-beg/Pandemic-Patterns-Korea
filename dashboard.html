@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive COVID-19 Dashboard</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        header {
+            background-color: #524169;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 1.8em;
+        }
+        nav {
+            display: flex;
+            gap: 10px;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+        nav a:hover {
+            background-color: #2f2052;
+        }
+        main {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-auto-rows: 500px;
+            gap: 20px;
+            padding: 20px;
+        }
+        .visualization {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .visualization iframe {
+            width: 100%;
+            height: calc(100% - 40px); 
+            border: none;
+            border-radius: 10px;
+        }
+        .visualization h2 {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            color: #69508c;
+        }
+        .timeline {
+            grid-column: span 2;
+            height: 550px; 
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>COVID-19 Analytics Dashboard</h1>
+        <nav>
+            <a href="index.html">Home</a>
+            <a href="ForceDirected.html">Force-Directed Graph</a>
+            <a href="GeoMap.html">Geo Map</a>
+            <a href="sunburst.html">Sunburst Chart</a>
+            <a href="timeline.html">Timeline</a>
+            <a href="treemap.html">Treemap</a>
+        </nav>
+    </header>
+    <main>
+        <div class="visualization timeline">
+            <h2>Timeline: COVID-19 Cases Trend</h2>
+            <iframe src="timeline.html" title="Timeline Visualization"></iframe>
+        </div>
+        <div class="visualization">
+            <h2>Force-Directed Graph: Province, City, and Infection Cases</h2>
+            <iframe src="ForceDirected.html" title="Force-Directed Graph"></iframe>
+        </div>
+        <div class="visualization">
+            <h2>South Korea Map: Provinces and Cities</h2>
+            <iframe src="GeoMap.html" title="Geo Map"></iframe>
+        </div>
+        <div class="visualization">
+            <h2>Sunburst Chart: COVID-19 Hierarchical Data</h2>
+            <iframe src="sunburst.html" title="Sunburst Chart"></iframe>
+        </div>
+        <div class="visualization">
+            <h2>Treemap</h2>
+            <iframe src="treemap.html" title="Treemap"></iframe>
+        </div>
+    </main>
+</body>
+</html>

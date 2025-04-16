@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>COVID-19 Cases Trend</title>
+  <script src="https://d3js.org/d3.v6.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+    }
+    svg {
+      font: 10px sans-serif;
+    }
+    .controls {
+      margin: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #timeline {
+      flex-grow: 1;
+      margin: 0 20px;
+    }
+    button {
+      padding: 5px 15px;
+      cursor: pointer;
+    }
+    .tooltip {
+      position: absolute;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      pointer-events: none;
+      font-size: 12px;
+      display: none;
+    }
+    .line {
+      transition: stroke 0.2s ease;
+    }
+    .line:hover {
+      stroke: black !important;
+      stroke-width: 4px;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 10px 20px;
+    }
+    .legend-item {
+      cursor: pointer;
+      user-select: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      background-color: #f0f0f0;
+    }
+    .legend-item:hover {
+      background-color: #e0e0e0;
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <button id="playPauseBtn">Play</button>
+    <input type="range" id="timeline" value="0" step="1"/>
+    <span id="dateLabel"></span>
+  </div>
+  <svg width="960" height="600"></svg>
+  
+  <div class="tooltip"></div>
+  
+  <div class="legend"></div>
+  
+  <script>
+        const margin = { top: 20, right: 20, bottom: 40, left: 50 },
+          width = 960 - margin.left - margin.right,
+          height = 600 - margin.top - margin.bottom;
+
+    const svg = d3.select("svg")
+      .attr("viewBox", [0, 0, width + margin.left + margin.right, height + margin.top + margin.bottom]);
+
+    const g = svg.append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    const x = d3.scaleTime().range([0, width]);
+    const yLog = d3.scaleLog().range([height, 0]);
+    const yLinear = d3.scaleLinear().range([height, 0]);
+    let y = yLog; // Default to logarithmic scale
+    const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+    // Axes
+    const xAxis = d3.axisBottom(x).ticks(10);
+    const yAxis = d3.axisLeft(y).ticks(10, "~s");  // Format the ticks
+
+    svg.append("g")
+      .attr("class", "x-axis")
+      .attr("transform", `translate(${margin.left}, ${height + margin.top})`);
+
+    svg.append("g")
+      .attr("class", "y-axis")
+      .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+    d3.csv("data/cleaned_covid_map_data.csv").then(data => {
+      data.forEach(d => {
+        d.date = new Date(d.date); 
+        d.province_confirmed = +d.province_confirmed || 0; 
+      });
+
+      const provinces = Array.from(new Set(data.map(d => d.province)));
+      const provinceData = provinces.map(province => {
+        return {
+          province: province,
+          values: data.filter(d => d.province === province)
+                        .sort((a, b) => d3.ascending(a.date, b.date))
+        };
+      });
+
+      x.domain(d3.extent(data, d => d.date));
+      y.domain([1, d3.max(data, d => d.province_confirmed)]);  
+      color.domain(provinces);
+
+      svg.select(".x-axis").call(xAxis);
+      svg.select(".y-axis").call(yAxis);
+
+      const line = d3.line()
+                     .x(d => x(d.date))
+                     .y(d => y(d.province_confirmed));
+
+      const tooltip = d3.select(".tooltip");
+
+      const lines = g.selectAll(".line")
+        .data(provinceData)
+        .enter()
+        .append("path")
+        .attr("class", "line")
+        .attr("fill", "none")
+        .attr("stroke", d => color(d.province))
+        .attr("stroke-width", 2.5)
+        .attr("d", d => line(d.values))
+        .on("mouseover", function(event, d) {
+          const [mouseX, mouseY] = d3.pointer(event);
+          
+          const x0 = x.invert(mouseX);
+          const bisect = d3.bisector(d => d.date).left;
+          const index = bisect(d.values, x0);
+          const dataPoint = d.values[index];
+          
+          tooltip.style("display", "block")
+            .html(`
+              Province: ${d.province}<br>
+              Confirmed: ${dataPoint.province_confirmed.toLocaleString()}<br>
+              Released: ${dataPoint.province_released.toLocaleString()}<br>
+              Deceased: ${dataPoint.province_deceased.toLocaleString()}
+            `)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 10) + "px");
+        })
+        .on("mousemove", function(event) {
+          tooltip.style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 10) + "px");
+        })
+        .on("mouseout", function() {
+          tooltip.style("display", "none");
+        });
+
+      const legend = d3.select(".legend");
+
+      let selectedProvinces = new Set(provinces);
+
+      function updateYDomain() {
+        const filteredData = data.filter(d => selectedProvinces.has(d.province));
+
+        if (selectedProvinces.size === 1) {
+          y = yLinear;
+          const province = Array.from(selectedProvinces)[0];
+          const provinceValues = provinceData.find(p => p.province === province).values;
+          const provinceMin = d3.min(provinceValues, d => d.province_confirmed);
+          const provinceMax = d3.max(provinceValues, d => d.province_confirmed);
+          y.domain([provinceMin, provinceMax]);
+        } else {
+          // Multiple provinces - use logarithmic scale
+          y = yLog;
+          y.domain([1, d3.max(filteredData, d => d.province_confirmed)]);
+        }
+
+        // Update y-axis with the new scale
+        yAxis.scale(y);
+        svg.select(".y-axis").transition().duration(500).call(yAxis);
+
+        // Update the line generator with the new y-scale
+        line.y(d => y(d.province_confirmed));
+
+        // Redraw the lines with the updated y-scale
+        lines.attr("d", d => line(d.values.filter(v => v.date <= new Date(groupedData[i][0]))));
+      }
+
+      function updateLines() {
+        lines.style("display", d => selectedProvinces.has(d.province) ? null : "none");
+        updateVisualization(i);
+      }
+
+      legend.append("div")
+        .attr("class", "legend-item")
+        .style("color", "black")
+        .text("All")
+        .on("click", () => {
+          selectedProvinces = new Set(provinces);
+          updateYDomain();
+          updateLines();
+        });
+
+      provinces.forEach(province => {
+        legend.append("div")
+          .attr("class", "legend-item")
+          .style("color", color(province))
+          .text(province)
+          .on("click", function() {
+            if (selectedProvinces.size !== 1 || !selectedProvinces.has(province)) {
+              selectedProvinces = new Set([province]);
+            } else {
+              selectedProvinces = new Set(provinces);
+            }
+            updateYDomain();
+            updateLines();
+          });
+      });
+
+      const groupedData = Array.from(d3.group(data, d => d.date.toDateString()))
+        .sort(([a], [b]) => new Date(a) - new Date(b));
+
+      let i = 0;
+      let isPlaying = false;
+      let interval;
+      const playPauseBtn = document.getElementById('playPauseBtn');
+      const slider = document.getElementById('timeline');
+      const dateLabel = document.getElementById('dateLabel');
+
+      slider.min = 0;
+      slider.max = groupedData.length - 1;
+
+      function updateVisualization(index) {
+        i = index;
+        const [currentDate, currentData] = groupedData[i];
+
+        slider.value = i;
+        dateLabel.textContent = new Date(currentDate).toLocaleDateString();
+
+        provinceData.forEach(province => {
+          if (selectedProvinces.has(province.province)) {
+            const filteredValues = province.values.filter(d => d.date <= new Date(currentDate));
+            g.selectAll(".line")
+              .filter(d => d.province === province.province)
+              .attr("d", line(filteredValues));
+          }
+        });
+      }
+
+      function togglePlayPause() {
+        isPlaying = !isPlaying;
+        playPauseBtn.textContent = isPlaying ? 'Pause' : 'Play';
+
+        if (isPlaying) {
+          interval = d3.interval(() => {
+            if (i < groupedData.length - 1) {
+              i += 1;
+            } else {
+              interval.stop();
+              isPlaying = false;
+              playPauseBtn.textContent = 'Play';
+            }
+            updateVisualization(i);
+          }, 1000);
+        } else {
+          interval?.stop();
+        }
+      }
+
+      playPauseBtn.addEventListener('click', togglePlayPause);
+      slider.addEventListener('input', (e) => {
+        if (isPlaying) togglePlayPause();
+        updateVisualization(+e.target.value);
+      });
+
+      updateVisualization(0);
+    })
+    .catch(error => {
+      console.error("Error loading data:", error);
+    }); 
+  </script>
+</body>
+</html>
