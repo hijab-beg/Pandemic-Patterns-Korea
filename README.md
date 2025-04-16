@@ -1,4 +1,4 @@
-# Interactive Data Visualization Dashboard Report
+# Interactive Data Visualization Dashboard
 
 ## Introduction
 This report outlines the insights derived from an interactive data visualization dashboard created using D3.js. The dashboard uses a cleaned dataset from a COVID-19 analysis in South Korea, focusing on the relationships between geographic locations, infection types, and timestamps. This document provides an explanation of the visualizations included, their purpose, and the key findings.
